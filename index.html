@@ -35,18 +35,6 @@
             color: #7fffd4;
             font-weight: 600;
         }
-        .sub {
-            text-align: center;
-            color: #88aabb;
-            font-size: 0.85rem;
-            margin-bottom: 24px;
-            border-bottom: 1px solid #2a4a55;
-            display: inline-block;
-            width: auto;
-            margin-left: auto;
-            margin-right: auto;
-            padding-bottom: 6px;
-        }
         .range-panel {
             background: #00000066;
             border-radius: 32px;
@@ -166,6 +154,11 @@
             color: white;
             box-shadow: 0 4px 0 #143a44;
         }
+        .btn-undo {
+            background: #6a5a2c;
+            color: white;
+            box-shadow: 0 4px 0 #3a2e14;
+        }
         .history {
             background: #0e1a1f;
             border-radius: 28px;
@@ -194,6 +187,11 @@
         }
         .white-text {
             color: white;
+        }
+        .undo-row {
+            display: flex;
+            justify-content: center;
+            margin-top: 8px;
         }
         @media (max-width: 480px) {
             .best-number { font-size: 2.4rem; }
@@ -226,6 +224,10 @@
         <button class="btn-more" id="moreBtn">БОЛЬШЕ</button>
         <button class="btn-reset" id="resetBtn">СБРОС</button>
     </div>
+    
+    <div class="undo-row">
+        <button class="btn-undo" id="undoBtn">↺ НАЗАД</button>
+    </div>
 
     <div class="step-info" id="stepInfo">Шагов: 0</div>
 
@@ -237,7 +239,8 @@
         Как пользоваться:<br>
         1. Бот пишет Больше X -> нажми БОЛЬШЕ<br>
         2. Бот пишет Меньше X -> нажми МЕНЬШЕ<br>
-        3. Нажми КОПИРОВАТЬ и вставь в чат
+        3. Нажми КОПИРОВАТЬ и вставь в чат<br>
+        4. Если ошибся — нажми НАЗАД
     </footer>
 </div>
 
@@ -249,12 +252,26 @@
     let high = MAX;
     let steps = 0;
     
+    let historyStack = [];
+    
     const rangeDisplay = document.getElementById('rangeDisplay');
     const bestGuessSpan = document.getElementById('bestGuess');
     const commandTextSpan = document.getElementById('commandText');
     const stepInfoSpan = document.getElementById('stepInfo');
     const historyBox = document.getElementById('historyBox');
     const copyBtn = document.getElementById('copyBtn');
+    const undoBtn = document.getElementById('undoBtn');
+    
+    function saveState() {
+        historyStack.push({
+            low: low,
+            high: high,
+            steps: steps
+        });
+        if (historyStack.length > 50) {
+            historyStack.shift();
+        }
+    }
     
     function formatNumber(num) {
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
@@ -286,6 +303,7 @@
     }
     
     function resetGame() {
+        historyStack = [];
         low = MIN;
         high = MAX;
         steps = 0;
@@ -295,12 +313,26 @@
         addHistory('Отправь боту это число', getCurrentOptimal());
     }
     
+    function undo() {
+        if (historyStack.length === 0) {
+            addHistory('НЕЧЕГО ОТМЕНЯТЬ', 'нет сохранённых состояний');
+            return;
+        }
+        const last = historyStack.pop();
+        low = last.low;
+        high = last.high;
+        steps = last.steps;
+        updateUI();
+        addHistory('ОТМЕНА', `возврат к ${formatNumber(getCurrentOptimal())}`);
+    }
+    
     function handleMore() {
         const lastGuess = getCurrentOptimal();
         if (low === high) {
             addHistory('ОШИБКА: диапазон схлопнулся, но сказали БОЛЬШЕ. Сбрось игру', lastGuess);
             return;
         }
+        saveState();
         low = lastGuess + 1;
         if (low > high) {
             addHistory('ПРОТИВОРЕЧИЕ: low > high. Нажми СБРОС', lastGuess);
@@ -322,6 +354,7 @@
             addHistory('ОШИБКА: диапазон схлопнулся, но сказали МЕНЬШЕ. Сбрось игру', lastGuess);
             return;
         }
+        saveState();
         high = lastGuess - 1;
         if (low > high) {
             addHistory('ПРОТИВОРЕЧИЕ: low > high. Нажми СБРОС', lastGuess);
@@ -366,6 +399,7 @@
     document.getElementById('lessBtn').addEventListener('click', handleLess);
     document.getElementById('resetBtn').addEventListener('click', resetGame);
     copyBtn.addEventListener('click', copyToClipboard);
+    undoBtn.addEventListener('click', undo);
     
     resetGame();
 </script>
